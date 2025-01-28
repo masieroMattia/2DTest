@@ -9,18 +9,22 @@ public class CharacterMover : MonoBehaviour
 {
     public enum Direction
     {
-        Down = 0,
         Left = 1,
-        Up = 2
     }
 
     #region Public Variables
     public InputActionAsset inputActions;
     public float walkSpeed = 2.0f;
     public float runSpeed = 4.0f;
+    public float jumpForce = 5.0f;
+    public float groundCheckRadius = 0.2f;
+
     #endregion
 
     #region Private Variables
+    [SerializeField]
+    private LayerMask groundLayer;
+
     private Animator animator;
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
@@ -35,6 +39,7 @@ public class CharacterMover : MonoBehaviour
     private int jumpHash;
 
     private Direction currentDirection;
+    private bool isGrounded;
     #endregion
 
     #region Cycle Life
@@ -77,14 +82,20 @@ public class CharacterMover : MonoBehaviour
     void Update()
     {
         Move();
+        CheckGroundStatus();
     }
 
     #endregion
 
     #region Private Methods
-    private void OnJumpPerformed (InputAction.CallbackContext context)
+
+    private void OnJumpPerformed(InputAction.CallbackContext context)
     {
-        animator.SetTrigger(jumpHash); 
+        if (isGrounded)
+        {
+            animator.SetTrigger(jumpHash);
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce); // Apply jump force
+        }
     }
 
     private void Move()
@@ -93,7 +104,7 @@ public class CharacterMover : MonoBehaviour
 
         float currentSpeed = run.ReadValue<float>() > 0 ? runSpeed : walkSpeed;  // Check if running
 
-        rb.velocity = new Vector2(moveInput.x * currentSpeed, moveInput.y * currentSpeed);
+        rb.velocity = new Vector2(moveInput.x * currentSpeed, rb.velocity.y);
 
         bool isWalking = moveInput.magnitude > 0 && currentSpeed == walkSpeed;
         bool isRunning = moveInput.magnitude > 0 && currentSpeed == runSpeed;
@@ -111,20 +122,20 @@ public class CharacterMover : MonoBehaviour
             SetDirection(Direction.Left);
             spriteRenderer.flipX = false;
         }
-        else if (moveInput.y > 0)
-        {
-            SetDirection(Direction.Up);
-        }
-        else if (moveInput.y < 0)
-        {
-            SetDirection(Direction.Down);
-        }
+
     }
 
     private void SetDirection(Direction direction)
     {
         currentDirection = direction;
         animator.SetFloat(directionHash, (float)direction);
+    }
+
+    private void CheckGroundStatus()
+    {
+        // Check for ground within a radius around the player's position
+        isGrounded = Physics2D.OverlapCircle(transform.position, groundCheckRadius, groundLayer);
+        animator.SetBool("IsGrounded", isGrounded); // Update animator with ground status
     }
     #endregion
 }
